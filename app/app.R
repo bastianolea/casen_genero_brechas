@@ -9,6 +9,9 @@ color_texto = "#fecea8"
 color_destacado = "#b21e4b"
 color_enlaces = "#cc3865"
 
+
+casen_genero <- readr::read_csv2("casen_genero_regiones.csv")
+  
 ui <- fluidPage(
   title = "Brechas de género", 
   lang = "es",
@@ -76,6 +79,11 @@ ui <- fluidPage(
 #—----
 server <- function(input, output) {
   
+  
+  datos <- reactive({
+    req(length(input$selector_regiones) > 0)
+    
+  })
   
 }
 
