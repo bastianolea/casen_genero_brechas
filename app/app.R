@@ -9,6 +9,7 @@ library(ggnewscale)
 library(colorspace)
 library(glue)
 library(shinyWidgets)
+library(shinycssloaders)
 
 
 color_fondo = "#1c0e44"
@@ -41,24 +42,28 @@ ui <- fluidPage(
   
   #tema ----
   use_googlefont("Urbanist"), #cargar fuente o tipo de letra
-  use_googlefont("DM Serif Display"),
+  # use_googlefont("DM Serif Display"),
   
   use_theme(
     create_theme(
       theme = "default",
-      bs_vars_input(bg = color_fondo),
+      bs_vars_input(bg = color_fondo, 
+                    color = color_texto, 
+                    color_placeholder = color_recuadro, 
+                    border_focus = color_destacado),
       bs_vars_global(body_bg = color_fondo, 
+                     link_hover_color = color_femenino,
                      text_color = color_texto, 
                      link_color = color_destacado
       ),
-      bs_vars_font(size_base = "19px", #aumentar globalmente tamaño de letra  
+      bs_vars_font(size_base = "18px", #aumentar globalmente tamaño de letra  
                    family_sans_serif = "Urbanist" #cargar fuente o tipo de letra
       ), 
-      bs_vars_modal(content_bg = color_fondo, 
-                    content_border_color = color_detalle, 
-                    backdrop_bg = color_fondo, 
-                    backdrop_opacity = "60%"
-      ),
+      # bs_vars_modal(content_bg = color_fondo, 
+      #               content_border_color = color_detalle, 
+      #               backdrop_bg = color_fondo, 
+      #               backdrop_opacity = "60%"
+      # ),
       bs_vars_wells(bg = color_recuadro
       ),
       bs_vars_button(
@@ -76,6 +81,52 @@ ui <- fluidPage(
                     hr {
   border-top: 3px solid ", color_recuadro, ";
                     }")),
+  
+  
+  #texto de pickers
+  tags$style(paste0("
+                    .btn.dropdown-toggle {
+                   font-size: 85%;
+                   }")),
+  
+  #colores pickers
+  tags$style(paste0("
+         .dropdown-menu,  .divider {
+         background: ", color_recuadro, " !important;
+         }
+  
+         .dropdown-header {
+         font-weight: bold;
+         font-size: 120%;
+         }
+         
+         .text {
+         color: ", color_texto, " !important;
+         }
+         
+         .form-control {
+         color: ", color_texto, " !important;
+         box-shadow: none;
+         }
+         
+         .no-results {
+         color: black !important;
+         background: ", color_destacado, " !important;
+         }
+         
+         /*color de fondo de opción elegida*/
+         .dropdown-item.selected {
+         background-color: ", color_destacado, " !important;
+         color: black !important;
+         }
+         
+         /*color del fondo de la opción en hover*/
+         .dropdown-item:hover {
+         color: red;
+         background-color: ", color_femenino, " !important;
+         }
+         ")),
+  # .dropdown-menu>li>a:hover, .dropdown-menu>li>a:focus {
   
   
   #titulo ----
@@ -109,8 +160,8 @@ ui <- fluidPage(
     
     #grafico ----
   fluidRow(
-    column(12,
-      plotOutput("grafico_regiones", height = "600px")
+    column(12, style = "height: 640px; width: 1024px; overflow-x: scroll;",
+      plotOutput("grafico_regiones", height = "640px") |> withSpinner(type = 8, color = color_femenino)
     )
   ),
   
@@ -151,8 +202,8 @@ server <- function(input, output) {
       mutate(brecha = Femenino - Masculino,
              valor_min = min(c(Femenino, Masculino)),
              valor_max = max(c(Femenino, Masculino)),
-             brecha_dir = ifelse(brecha <= 0, "negativa", "positiva"),
-             brecha_end = ifelse(brecha_dir == "positiva", valor_min + brecha, valor_min - brecha),
+             brecha_dir = ifelse(brecha <= 0, " Negativa", " Positiva"),
+             brecha_end = ifelse(brecha_dir == " Positiva", valor_min + brecha, valor_min - brecha),
              brecha_chica = ifelse(abs(brecha) < 0.02, "chica", "normal"),
              brecha_hay = ifelse(abs(brecha) > 0.008, "sí", "no")) |> 
       ungroup() |> 
@@ -180,6 +231,10 @@ server <- function(input, output) {
     # browser()
     # dev.new()
     
+    
+    paleta_brechas <- c("positiva" = color_positivo, "negativa" = color_negativo)
+    paleta_brechas_filtrada <- paleta_brechas[names(paleta_brechas) %in% unique(datos()$brecha_dir)]
+    
     rango <- max(datos()$valor_max) - min(datos()$valor_min)
     
     espaciado_texto_valores_pegados = 0.001
@@ -196,13 +251,18 @@ server <- function(input, output) {
                  color = color_fondo, linewidth = 1) +
       #linea vertical de brechas
       geom_segment(aes(xend = region, y = valor_min, yend = brecha_end, color = brecha_dir), 
-                   linewidth = 4, lineend = "round", show.legend = F, alpha = 0.8) +
-      scale_color_manual(values = c("positiva" = color_positivo, "negativa" = color_negativo)) + #escala para lineas verticales de brecha
+                   linewidth = 4, lineend = "round", show.legend = T, alpha = 0.8) +
+      scale_color_manual(values = c(" Positiva" = color_positivo, " Negativa" = color_negativo), name = "brecha: ") + #escala para lineas verticales de brecha
       new_scale_colour() +
+      #puntos de sombra
+      geom_point(data = datos() |> filter(valor_pos == "arriba"), 
+                 aes(color = sexo, size = variable), color = color_recuadro, size = 15, alpha = 0.2) +
+      geom_point(data = datos() |> filter(valor_pos == "abajo"),
+                 aes(color = sexo, size = variable, y = variable-0.0008), color = color_fondo, size = 13, alpha = 0.4) +
       #puntos principales por región y sexo
       geom_point(aes(color = sexo, size = variable),
                  alpha = 1) +
-      scale_color_manual(values = c(color_femenino, color_masculino)) + #escala para puntos principales
+      scale_color_manual(values = c("Femenino" = color_femenino, "Masculino" = color_masculino)) + #escala para puntos principales
       #texto brechas normales
       geom_text(data = datos() |> filter(brecha_hay == "sí"), #|> filter(brecha_chica == "normal"), 
                 aes(label = scales::percent(variable, accuracy = 1)),
@@ -211,10 +271,13 @@ server <- function(input, output) {
       # geom_text(data = datos() |> filter(brecha_hay == "sí" & brecha_chica == "chica"),
       #           aes(label = variable_p, y = ifelse(valor_pos == "arriba", variable + espaciado_texto_valores_pegados, variable - espaciado_texto_valores_pegados)), color = "white", size = 3) +
       #texto sin brecha (un solo texto para ambos puntos)
+      geom_point(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
+                aes(y = valor_prom),
+                color = color_femenino, size = 10, alpha = .6) +
       geom_text(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
                 aes(y = valor_prom, label = scales::percent(variable, accuracy = 1)),
                 color = "white", size = 3.4, check_overlap = TRUE) +
-      scale_fill_manual(values = c("positiva" = color_positivo, "negativa" = color_negativo)) +
+      scale_fill_manual(values = c(" Positiva" = color_positivo, " Negativa" = color_negativo), name = "brecha: ") +
       #label brecha
       geom_label(data = datos() |> filter(sexo == "Femenino" & abs(brecha) > 0.01),
                  aes(label = brecha_p, fill = brecha_dir, 
@@ -222,34 +285,45 @@ server <- function(input, output) {
                                 valor_max + espaciado_label_brecha, #etiquetas arriba
                                 valor_min - espaciado_label_brecha) #etiquetas abajo
                  ),
-                 color = "white", alpha = 0.9, label.size = 0, size = 3) +
-      geom_point(aes(fill = brecha_dir), alpha = 0) +
+                 color = "white", alpha = 0.9, label.size = 0, size = 3, show.legend = F) +
       #label sin brecha
-      geom_label(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
-                 aes(label = "OK", 
-                     # y = valor_max + (valor_max*0.07)
-                     y = ifelse(valor_min <= valor_prom_pais, 
-                                valor_max + espaciado_label_brecha, #etiquetas arriba
-                                valor_min - espaciado_label_brecha) #etiquetas abajo
-                     ),
-                 fill = color_neutro, color = "white", size = 3, label.size = 0) +
+      # geom_label(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
+      #            aes(label = "OK", 
+      #                # y = valor_max + (valor_max*0.07)
+      #                y = ifelse(valor_min <= valor_prom_pais, 
+      #                           valor_max + espaciado_label_brecha, #etiquetas arriba
+      #                           valor_min - espaciado_label_brecha) #etiquetas abajo
+      #                ),
+      #            fill = color_neutro, color = "white", size = 3, label.size = 0) +
       scale_size(range = c(12, 12), guide = NULL) +
       scale_alpha_continuous(range = c(0, 1)) + 
-      scale_y_continuous(expand = expansion(c(0.1, 0.1)), labels = ~scales::percent(.x, accuracy = 1)) + #, trans = "log10") +
+      scale_y_continuous(expand = expansion(c(0, 0)), labels = ~scales::percent(.x, accuracy = 1)) + #, trans = "log10") +
       coord_cartesian(clip = "off") +
       guides(
-        #fill = guide_legend(override.aes = list(size=10, label = "", fill = color_fondo, alpha = 1, 
-         #                                            values = c("positiva" = color_positivo, "negativa" = color_negativo)), title = "brecha", reverse = T),
-        fill = "none",     
-        colour = guide_legend(override.aes = list(size=10), title = "género", nrow = 1)) +
+        # fill = guide_legend(override.aes = list(size=10, label = "", fill = color_fondo, alpha = 1, 
+        #                                              values = paleta_brechas_filtrada), title = "brecha"),
+        # fill = "none",     
+        # fill = guide_legend(override.aes = list(size = 6, label = ""), title = "brecha:", nrow = 1, order = 99),
+        # fill = guide_legend(override.aes = list(size = 10, label = "", fill = NA, alpha = 1), title = "Brecha:", nrow = 1),
+        fill = guide_legend(override.aes = list(size = 10, alpha = 1), title = "brecha: ", label.theme = element_text(margin = margin(l = 10)), nrow = 1),
+        colour = guide_legend(override.aes = list(size = 10), title = "género:", nrow = 1, order = 1)
+        ) +
+      labs(y = "Porcentaje de la población perteneciente a cada género") +
       theme_minimal() +
-      theme(legend.position = "top", text = element_text(color = color_texto), 
-            axis.text.x = element_text(size = 12, angle = 90, hjust = 1, vjust = 0.5, margin = margin(t = -3), color = color_texto), axis.title.x = element_blank(),
+      #leyenda
+      theme(panel.grid = element_blank(),
+            legend.position = "top", 
+            legend.box.margin = margin(b=15),
+            legend.title = element_text(color = color_secundario, face = "bold", size = 12),
+            legend.text = element_text(size = 10, margin = margin(r = 10))) +
+      #textos
+      theme(text = element_text(color = color_texto), 
+            axis.text.x = element_text(size = 12, angle = 90, hjust = 1, vjust = 0.5, margin = margin(t = 23), color = color_texto), 
+            axis.title.x = element_blank(),
             axis.text.y = element_text(margin = margin(r = -10, l = 5), color = color_texto), 
-            axis.title.y = element_blank(), #axis.title.y = element_text(color = color_secundario),
-            panel.grid = element_blank(),
-            legend.box.margin = margin(b=-15), legend.title = element_text(color = color_secundario),
-            panel.background = element_rect(fill = color_fondo, linewidth = 0),
+            axis.title.y = element_text(color = color_secundario, size = 11)) +
+      #fondos
+      theme(panel.background = element_rect(fill = color_fondo, linewidth = 0),
             plot.background = element_rect(fill = color_fondo, linewidth = 0),
             legend.background = element_rect(fill = "transparent", linewidth = 0)
       )
