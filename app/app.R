@@ -10,22 +10,23 @@ library(colorspace)
 library(glue)
 library(shinyWidgets)
 
-color_texto = "white"
-color_secundario = "#95008f"
-
-color_positivo = "#00718d" #048486" #"#10607f" #"#007c81"
-color_negativo = "#912c6f" #"#7e1d1f" 
-color_neutro = "#3d169f"
 
 color_fondo = "#1c0e44"
 color_recuadro = "#261060"
 
+color_texto = "#c1abfb"
+color_destacado = "#d8006b"
+
 color_femenino =  "#6e47c5" #"#7f40c5" #"#9a75fb"
 color_masculino = "#770072" #"#d8006b"
 
+color_positivo = "#00718d" #048486" #"#10607f" #"#007c81"
+color_negativo = "#912c6f" #"#7e1d1f" 
+color_neutro = "#431f9e"
+
+color_secundario = "#95008f"
 color_detalle = "#770072"
-color_texto = "#c1abfb"
-color_destacado = "#d8006b"
+
 color_enlaces = color_destacado
 
 
@@ -88,9 +89,9 @@ ui <- fluidPage(
   
   # selectores ----
   fluidRow(
-    column(12,
+    column(12, style = "width: 600px;",
       pickerInput("tema",
-                  "Escoja una temática",
+                  "Escoja una temática", width = "100%",
                   choices = c("Ingresos",
                               "Trabajo",
                               "Vivienda",
@@ -99,17 +100,17 @@ ui <- fluidPage(
                               )
       ),
       pickerInput("variable",
-                  "Escoja una variable",
+                  "Escoja una variable", width = "100%",
                   selected = "pobreza_p", multiple = F,
                   choices = variables
       )
     )
   ),
     
-    
+    #grafico ----
   fluidRow(
     column(12,
-      plotOutput("grafico_regiones")
+      plotOutput("grafico_regiones", height = "600px")
     )
   ),
   
@@ -134,7 +135,7 @@ server <- function(input, output) {
   
   # datos ----
   datos <- reactive({
-    # req(length(input$selector_regiones) > 0)
+    req(length(input$variable) > 0)
     
     # .variable = "hacinamiento_p"
     .variable = input$variable
@@ -152,12 +153,12 @@ server <- function(input, output) {
              valor_max = max(c(Femenino, Masculino)),
              brecha_dir = ifelse(brecha <= 0, "negativa", "positiva"),
              brecha_end = ifelse(brecha_dir == "positiva", valor_min + brecha, valor_min - brecha),
-             brecha_chica = ifelse(abs(brecha) < 0.015, "chica", "normal"),
-             brecha_hay = ifelse(abs(brecha) > 0.01, "sí", "no")) |> 
+             brecha_chica = ifelse(abs(brecha) < 0.02, "chica", "normal"),
+             brecha_hay = ifelse(abs(brecha) > 0.008, "sí", "no")) |> 
       ungroup() |> 
       pivot_longer(cols = c(Masculino, Femenino), names_to = "sexo", values_to = "variable") |> 
       mutate(variable_p = scales::percent(variable, accuracy = 1),
-             brecha_p = scales::percent(brecha, accuracy = 1.1)) |> 
+             brecha_p = scales::percent(brecha, accuracy = 1)) |> 
       group_by(region) |>
       mutate(valor_pos = ifelse(variable == max(variable), "arriba", "abajo"),
              valor_prom = mean(variable)) |> 
@@ -167,14 +168,23 @@ server <- function(input, output) {
       mutate(region = region |> str_remove("Región de |Región del |Región ") |> str_wrap(16) |> as.factor(),
              region = region |> fct_reorder(variable, .desc = T)
       )
+    
+    print(dato, n=Inf)
     return(dato)
   })
   
   
   #grafico ----
   output$grafico_regiones <- renderPlot({
+    req(datos())
     # browser()
     # dev.new()
+    
+    rango <- max(datos()$valor_max) - min(datos()$valor_min)
+    
+    espaciado_texto_valores_pegados = 0.001
+    espaciado_label_brecha = 0.035*(rango*2.5)
+      
     datos() |> 
       # print(n=Inf) |> 
       ggplot(aes(region, variable)) + 
@@ -190,55 +200,69 @@ server <- function(input, output) {
       scale_color_manual(values = c("positiva" = color_positivo, "negativa" = color_negativo)) + #escala para lineas verticales de brecha
       new_scale_colour() +
       #puntos principales por región y sexo
-      # geom_point(aes(color = sexo, size = variable*2),
-      #            alpha = 1, fill = "red") + #color_neutro) +
       geom_point(aes(color = sexo, size = variable),
                  alpha = 1) +
       scale_color_manual(values = c(color_femenino, color_masculino)) + #escala para puntos principales
       #texto brechas normales
-      geom_text(data = datos() |> filter(brecha_hay == "sí" & brecha_chica == "normal"), 
+      geom_text(data = datos() |> filter(brecha_hay == "sí"), #|> filter(brecha_chica == "normal"), 
                 aes(label = scales::percent(variable, accuracy = 1)),
                 color = "white", size = 3.4) +
-      #texto brechas chicas (mas separado hacia los extremos para que no se peguen
-      geom_text(data = datos() |> filter(brecha_hay == "sí" & brecha_chica == "chica"),
-                aes(label = variable_p, y = ifelse(valor_pos == "arriba", variable + 0.0025, variable - 0.0025)), color = "white", size = 3) +
+      # #texto brechas chicas (mas separado hacia los extremos para que no se peguen
+      # geom_text(data = datos() |> filter(brecha_hay == "sí" & brecha_chica == "chica"),
+      #           aes(label = variable_p, y = ifelse(valor_pos == "arriba", variable + espaciado_texto_valores_pegados, variable - espaciado_texto_valores_pegados)), color = "white", size = 3) +
       #texto sin brecha (un solo texto para ambos puntos)
-      geom_text(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"), 
+      geom_text(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
                 aes(y = valor_prom, label = scales::percent(variable, accuracy = 1)),
                 color = "white", size = 3.4, check_overlap = TRUE) +
       scale_fill_manual(values = c("positiva" = color_positivo, "negativa" = color_negativo)) +
       #label brecha
       geom_label(data = datos() |> filter(sexo == "Femenino" & abs(brecha) > 0.01),
                  aes(label = brecha_p, fill = brecha_dir, 
-                     y = ifelse(valor_min < mean(variable), 
-                                valor_max + (valor_max*0.07), #etiquetas arriba
-                                valor_min - (valor_min*0.07)) #etiquetas abajo
+                     y = ifelse(valor_min <= valor_prom_pais, 
+                                valor_max + espaciado_label_brecha, #etiquetas arriba
+                                valor_min - espaciado_label_brecha) #etiquetas abajo
                  ),
-                 color = "white", alpha = 0.9, label.size = 0,
-                 size = 3) +
+                 color = "white", alpha = 0.9, label.size = 0, size = 3) +
       geom_point(aes(fill = brecha_dir), alpha = 0) +
       #label sin brecha
       geom_label(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
-                 aes(label = "0%", y = valor_max + (valor_max*0.07)),
+                 aes(label = "OK", 
+                     # y = valor_max + (valor_max*0.07)
+                     y = ifelse(valor_min <= valor_prom_pais, 
+                                valor_max + espaciado_label_brecha, #etiquetas arriba
+                                valor_min - espaciado_label_brecha) #etiquetas abajo
+                     ),
                  fill = color_neutro, color = "white", size = 3, label.size = 0) +
-      scale_size(range = c(12, 15), guide = NULL) +
+      scale_size(range = c(12, 12), guide = NULL) +
       scale_alpha_continuous(range = c(0, 1)) + 
-      scale_y_continuous(expand = expansion(c(0.1, 0.1)), n.breaks = 6, labels = ~scales::percent(.x), trans = "log10") +
+      scale_y_continuous(expand = expansion(c(0.1, 0.1)), labels = ~scales::percent(.x, accuracy = 1)) + #, trans = "log10") +
       coord_cartesian(clip = "off") +
-      # guides(fill = guide_legend(override.aes = list(size=10, label = "", fill = color_fondo, alpha = 1, color = c(color_positivo, color_negativo)), title = "brecha", reverse = T),
-             # colour = guide_legend(override.aes = list(size=10), title = "género")) +
+      guides(
+        #fill = guide_legend(override.aes = list(size=10, label = "", fill = color_fondo, alpha = 1, 
+         #                                            values = c("positiva" = color_positivo, "negativa" = color_negativo)), title = "brecha", reverse = T),
+        fill = "none",     
+        colour = guide_legend(override.aes = list(size=10), title = "género", nrow = 1)) +
       theme_minimal() +
-      theme(text = element_text(color = color_texto), 
-            axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, margin = margin(t = -3), color = color_texto), axis.title.x = element_blank(),
-            axis.text.y = element_text(margin = margin(r = -4, l = 5)), axis.title.y = element_text(color = color_secundario),
+      theme(legend.position = "top", text = element_text(color = color_texto), 
+            axis.text.x = element_text(size = 12, angle = 90, hjust = 1, vjust = 0.5, margin = margin(t = -3), color = color_texto), axis.title.x = element_blank(),
+            axis.text.y = element_text(margin = margin(r = -10, l = 5), color = color_texto), 
+            axis.title.y = element_blank(), #axis.title.y = element_text(color = color_secundario),
             panel.grid = element_blank(),
-            legend.box.margin = margin(l=-5), legend.title = element_text(color = color_secundario),
+            legend.box.margin = margin(b=-15), legend.title = element_text(color = color_secundario),
             panel.background = element_rect(fill = color_fondo, linewidth = 0),
             plot.background = element_rect(fill = color_fondo, linewidth = 0),
             legend.background = element_rect(fill = "transparent", linewidth = 0)
       )
     
-  })
+    # if (rango < 0.2) {
+    #   p <- p +
+    #     # coord_cartesian(clip = "off", )
+    #     scale_y_continuous(expand = expansion(c(0.9, 0.9)))
+    # }
+    
+    # p
+    
+  }, res = 90)
   
 }
 
