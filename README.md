@@ -9,3 +9,11 @@ Las variables fueron seleccionadas por el interés general que puedan tener, y n
 Tanto la aplicación como el procesamiento de los datos, incluida la descarga de los datos oficiales de la Casen, están programadas en R y disponibles en este repositorio.
 
 [La aplicación web está disponible en shinyapps.io](https://bastianoleah.shinyapps.io/casen_brechas_genero), o bien, puedes clonar este repositorio en tu equipo para reproducir todos los cálculos y usarla por medio de RStudio.
+
+![Brechas de género Casen 2022](www/brechas_de_genero_casen_2022.jpg "Brechas de género Casen 2022")
+
+----
+
+por Bastián Olea Herrera.
+https://bastian.olea.biz
+bastianolea arroba gmail punto com
