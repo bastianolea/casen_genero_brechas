@@ -11,7 +11,7 @@ library(glue)
 library(shinyWidgets)
 library(shinycssloaders)
 
-
+#colores ----
 color_fondo = "#1c0e44"
 color_recuadro = "#261060"
 
@@ -28,19 +28,23 @@ color_neutro = "#431f9e"
 color_secundario = "#95008f"
 color_detalle = "#770072"
 
-color_enlaces = color_destacado
 
+#cargar datos ----
+# setwd("app/")
+casen_genero <- readr::read_csv2("casen_genero_regiones.csv", 
+                                 col_types = c("f", "c", "n"), locale = readr::locale(decimal_mark = ","))
 
-casen_genero <- readr::read_csv2("casen_genero_regiones.csv")
-  
+#cargar variables
 source("variables.R")
 
+css_p_inline = "display: inline; color: white; border-radius: 4px; padding-left: 4px; padding-right: 4px;"
 
+#ui ----
 ui <- fluidPage(
   title = "Brechas de género", 
   lang = "es",
   
-  #tema ----
+  ##tema ----
   use_googlefont("Urbanist"), #cargar fuente o tipo de letra
   # use_googlefont("DM Serif Display"),
   
@@ -75,7 +79,7 @@ ui <- fluidPage(
     )
   ),
   
-  # css ----
+  ## css ----
   #separador
   tags$style(paste0("
                     hr {
@@ -129,41 +133,98 @@ ui <- fluidPage(
   # .dropdown-menu>li>a:hover, .dropdown-menu>li>a:focus {
   
   
-  #titulo ----
+  ## header ----
   fluidRow(
     column(12,
-  h1("Brechas de género", style = glue("color: {color_destacado}")),
-  
-  p("Esta es una aplicación muy bonita y divertida")
+           div(style = "margin-bottom: 16px;",
+               h1("Brechas de género", style = glue("color: {color_destacado}")),
+               p("por", em("Bastián Olea Herrera"))
+           ),
+           
+           #texto
+           div(
+             style = "display: inline; padding-bottom: 12px;",
+             p("Este visualizador produce gráficos regionales de brechas de género a partir de los datos de la",
+               tags$a("Encuesta de caracterización socioeconómica nacional (Casen) 2022.", target = "_blank", href = "https://observatorio.ministeriodesarrollosocial.gob.cl/encuesta-casen-2022"),
+               "Un gráfico de brecha de género visualiza un mismo dato dividido por sexo, explicitando la diferencia o brecha entre hombres y mujeres en dicha medición."),
+             p("Seleccione una o varias temáticas, y luego elija una variable para visualizar las posibles brechas de género en ese dato."),
+             p("En el gráfico, cada columna representa a una región del país, y los círculos representan el porcentaje de",
+               p("mujeres", style = glue("{css_p_inline} background: {color_femenino};")), 
+               "y",
+               p("hombres", style = glue("{css_p_inline} background: {color_masculino};")), 
+               "que viven situación o condición de vida indicada por la variable. En las variables que refieren a hogares o viviendas, el porcentaje representa hogares encabezados por el género correspondiente. La línea vertical que conecta ambos círculos es la brecha: ",  
+               p("positiva", style = glue("{css_p_inline} background: {color_positivo};")), 
+               "si hay mas mujeres que hombres, o",
+               p("negativa", style = glue("{css_p_inline} background: {color_negativo};")), 
+               "si hay más hombres que mujeres.",
+               style = "display: inline;")
+           ),
+           hr()
     )
   ),
   
   # selectores ----
   fluidRow(
     column(12, style = "width: 600px;",
-      pickerInput("tema",
-                  "Escoja una temática", width = "100%",
-                  choices = c("Ingresos",
-                              "Trabajo",
-                              "Vivienda",
-                              "Pensiones",
-                              "Educación"
-                              )
-      ),
-      pickerInput("variable",
-                  "Escoja una variable", width = "100%",
-                  selected = "pobreza_p", multiple = F,
-                  choices = variables
-      )
+           
+           pickerInput("tematica",
+                       "Escoja las temáticas de su interés", width = "100%",
+                       choices = names(variables), 
+                       selected = c(names(variables)[1], names(variables)[3]),
+                       multiple = T, 
+                       options = pickerOptions(noneSelectedText = "Sin selección")
+           ),
+           pickerInput("variable",
+                       "Escoja una variable", width = "100%",
+                       selected = variables$Viviendas[10],
+                       multiple = F,
+                       choices = NULL #sample(c(variables[[1]], variables[[3]]), 1)
+           )
     )
   ),
-    
-    #grafico ----
+  
+  #grafico ----
   fluidRow(
-    column(12, style = "height: 640px; width: 1024px; overflow-x: scroll;",
-      plotOutput("grafico_regiones", height = "640px") |> withSpinner(type = 8, color = color_femenino)
+    column(12, 
+           style = "min-height: 720px; width: 1024px; overflow-x: scroll;",
+           hr(),
+           plotOutput("grafico_regiones", height = "720px") |> 
+             withSpinner(type = 8, color = color_femenino, proxy.height = "720px")
     )
   ),
+  
+  
+  #region y comunas ----
+  # #pone las comunas en el selector de comunas según la región elegida
+  # lista_comunas <- reactive({
+  #   
+  #     
+  #   }  
+  #   return(lista_comunas)
+  # }) |> bindEvent(input$selector_regiones)
+  # 
+  # 
+  # observeEvent(input$selector_regiones, {
+  #   req(length(input$selector_regiones) > 0)
+  #   
+  #   updatePickerInput(session,
+  #                     inputId = "selector_comunas",
+  #                     options = list( `live-search` = TRUE),
+  #                     selected = c("La Florida", "La Pintana", "Ñuñoa", "Vitacura", "Providencia"),
+  #                     choices = lista_comunas()
+  #   )
+  # })
+  
+  # fluidRow(
+  #   column(12,
+  #          pickerInput("region",
+  #                      "Escoja una región", width = "100%",
+  #                      selected = "Región Metropolitana de Santiago", multiple = F,
+  #                      choices = unique(casen_genero$region)
+  #          )
+  #          
+  #   )
+  # ),
   
   # firma ----
   fluidRow(
@@ -173,7 +234,7 @@ ui <- fluidPage(
              tags$a("Bastián Olea Herrera.", target = "_blank", href = "https://bastian.olea.biz")),
            p(
              "Código de fuente de esta app y del procesamiento de los datos",
-             tags$a("disponible en GitHub.", target = "_blank", href = "https://github.com/bastianolea/casen_relacionador")
+             tags$a("disponible en GitHub.", target = "_blank", href = "https://github.com/bastianolea/casen_genero_brechas")
            ),
            div(style = "height: 40px")
            
@@ -182,12 +243,32 @@ ui <- fluidPage(
 )
 
 #—----
-server <- function(input, output) {
+server <- function(input, output, session) {
+  
+  #variables ----
+  #filtrar variables según temática elegida
+  observeEvent(input$tematica, {
+    # observe({
+    req(length(input$tematica) > 0)
+    # temas <- c(names(variables)[4], names(variables)[5])
+    # variables[temas]
+    temas <- input$tematica
+    
+    message("temáticas: ", paste(temas, collapse = ", "))
+    
+    updatePickerInput(session, 
+                      "variable",
+                      "Escoja una variable",
+                      choices = variables[temas]
+    )
+  }, suspended = F)
+  
+  
   
   # datos ----
   datos <- reactive({
     req(length(input$variable) > 0)
-    
+    # req(input$variable %in% names(casen_genero))
     # .variable = "hacinamiento_p"
     .variable = input$variable
     
@@ -220,9 +301,9 @@ server <- function(input, output) {
              region = region |> fct_reorder(variable, .desc = T)
       )
     
-    print(dato, n=Inf)
+    # print(dato, n=Inf)
     return(dato)
-  })
+  }) |> bindEvent(input$tematicas, input$variable)
   
   
   #grafico ----
@@ -231,7 +312,6 @@ server <- function(input, output) {
     # browser()
     # dev.new()
     
-    
     paleta_brechas <- c("positiva" = color_positivo, "negativa" = color_negativo)
     paleta_brechas_filtrada <- paleta_brechas[names(paleta_brechas) %in% unique(datos()$brecha_dir)]
     
@@ -239,7 +319,7 @@ server <- function(input, output) {
     
     espaciado_texto_valores_pegados = 0.001
     espaciado_label_brecha = 0.035*(rango*2.5)
-      
+    
     datos() |> 
       # print(n=Inf) |> 
       ggplot(aes(region, variable)) + 
@@ -272,8 +352,8 @@ server <- function(input, output) {
       #           aes(label = variable_p, y = ifelse(valor_pos == "arriba", variable + espaciado_texto_valores_pegados, variable - espaciado_texto_valores_pegados)), color = "white", size = 3) +
       #texto sin brecha (un solo texto para ambos puntos)
       geom_point(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
-                aes(y = valor_prom),
-                color = color_femenino, size = 10, alpha = .6) +
+                 aes(y = valor_prom),
+                 color = color_femenino, size = 10, alpha = .6) +
       geom_text(data = datos() |> filter(brecha_hay == "no" & sexo == "Femenino"),
                 aes(y = valor_prom, label = scales::percent(variable, accuracy = 1)),
                 color = "white", size = 3.4, check_overlap = TRUE) +
@@ -307,7 +387,7 @@ server <- function(input, output) {
         # fill = guide_legend(override.aes = list(size = 10, label = "", fill = NA, alpha = 1), title = "Brecha:", nrow = 1),
         fill = guide_legend(override.aes = list(size = 10, alpha = 1), title = "brecha: ", label.theme = element_text(margin = margin(l = 10)), nrow = 1),
         colour = guide_legend(override.aes = list(size = 10), title = "género:", nrow = 1, order = 1)
-        ) +
+      ) +
       labs(y = "Porcentaje de la población perteneciente a cada género") +
       theme_minimal() +
       #leyenda
@@ -318,10 +398,11 @@ server <- function(input, output) {
             legend.text = element_text(size = 10, margin = margin(r = 10))) +
       #textos
       theme(text = element_text(color = color_texto), 
-            axis.text.x = element_text(size = 12, angle = 90, hjust = 1, vjust = 0.5, margin = margin(t = 23), color = color_texto), 
+            axis.text.x = element_text(size = 12, angle = 90, hjust = 1, vjust = 0.5, 
+                                       margin = margin(t = 20, b=0), color = color_texto), 
             axis.title.x = element_blank(),
-            axis.text.y = element_text(margin = margin(r = -10, l = 5), color = color_texto), 
-            axis.title.y = element_text(color = color_secundario, size = 11)) +
+            axis.text.y = element_text(size = 10, margin = margin(l = 3, r = -6), color = color_texto), 
+            axis.title.y = element_text(color = color_secundario, size = 12)) +
       #fondos
       theme(panel.background = element_rect(fill = color_fondo, linewidth = 0),
             plot.background = element_rect(fill = color_fondo, linewidth = 0),

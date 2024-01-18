@@ -7,6 +7,7 @@ library(ggnewscale)
 library(colorspace)
 setwd("app/")
 casen_genero <- readr::read_csv2("casen_genero_regiones.csv")
+# casen_genero <- readr::read_csv2("app/casen_genero_regiones.csv")
 datos <- function() casen_genero
 
 color_fondo = "#1c0e44"
