@@ -86,7 +86,6 @@ ui <- fluidPage(
   border-top: 3px solid ", color_recuadro, ";
                     }")),
   
-  
   #texto de pickers
   tags$style(paste0("
                     .btn.dropdown-toggle {
@@ -110,6 +109,8 @@ ui <- fluidPage(
          
          .form-control {
          color: ", color_texto, " !important;
+         border: 1px solid ", color_recuadro, " !important;
+         padding-bottom: 8px !important;
          box-shadow: none;
          }
          
@@ -165,7 +166,7 @@ ui <- fluidPage(
   
   # selectores ----
   fluidRow(
-    column(12, style = "width: 600px;",
+    column(12, style = "max-width: 600px;",
            
            pickerInput("tematica",
                        "Escoja las temáticas de su interés", width = "100%",

@@ -14,6 +14,8 @@ Tanto la aplicación como el procesamiento de los datos, incluida la descarga de
 
 ----
 
-por Bastián Olea Herrera.
+Diseñado y programado en R por Bastián Olea Herrera. Magíster en Sociología, data scientist.
+
 https://bastian.olea.biz
+
 bastianolea arroba gmail punto com
