@@ -80,6 +80,12 @@ ui <- fluidPage(
   ),
   
   ## css ----
+  
+  tags$style(paste0("
+                    h3 {
+  color: ", color_secundario, ";
+                    }")),
+  
   #separador
   tags$style(paste0("
                     hr {
@@ -201,14 +207,28 @@ ui <- fluidPage(
     )
   ),
   
-  #grafico ----
+  #graficos ----
   fluidRow(
-    column(12, 
-           style = "min-height: 720px; width: 1024px; overflow-x: scroll;",
+    column(12,
            hr(),
+           h3(textOutput("titulo_variable"))
+    ),
+    
+    column(8, align = "center", style = "min-width: 900px;",
+           # div(style = "min-height: 720px; width: 1024px; overflow-x: scroll;",
+           # div(
+           
            plotOutput("grafico_regiones", height = "720px") |> 
              withSpinner(type = 8, color = color_femenino, proxy.height = "720px")
+           # )
+    ),
+    column(4, align = "center", style = "min-width: 380px; max-width: 600px;",
+           # div(
+             plotOutput("grafico_barras", width = "100%", height = "720px") |> 
+               withSpinner(type = 8, color = color_femenino, proxy.height = "720px")
+           # )
     )
+  
   ),
   
   
@@ -297,7 +317,6 @@ server <- function(input, output, session) {
     # req(input$variable %in% names(casen_genero))
     # .variable = "hacinamiento_p"
     .variable = input$variable
-    
     message("variable: ", .variable)
     
     # browser()
@@ -332,7 +351,13 @@ server <- function(input, output, session) {
   }) |> bindEvent(input$tematicas, input$variable)
   
   
-  #grafico ----
+  #titulo ----
+  output$titulo_variable <- renderText({
+    req(length(input$variable) > 0)
+    unlist(variables)[unlist(variables) == input$variable] |> names() |> str_remove(".*\\.")
+  })
+  
+  #grafico regiones ----
   output$grafico_regiones <- renderPlot({
     req(datos())
     # browser()
@@ -443,9 +468,62 @@ server <- function(input, output, session) {
     # }
     
     # p
-    
+    # browser()
   }, res = 90)
   
+  #grafico barras ----
+  output$grafico_barras <- renderPlot({
+    req(datos())
+    
+    datos2 <- datos() |> 
+      mutate(variable = ifelse(sexo == "Femenino", 0-variable, variable)) |> 
+      mutate(region = fct_rev(region))
+    
+    datos2 |> 
+      # print(n=Inf) |> 
+      ggplot(aes(y = region, x = variable)) +
+      geom_col(aes(fill = sexo), width = 0.6) +
+      geom_text(data = datos2 |> filter(sexo == "Masculino"),
+                aes(label = variable_p, x = variable-0.01), 
+                hjust = 1, color = color_texto, size = 3) +
+      geom_text(data = datos2 |> filter(sexo == "Femenino"),
+                aes(label = variable_p, x = variable+0.01), 
+                hjust = 0, color = color_texto, size = 3) +
+      geom_text(data = datos2 |> filter(sexo == "Femenino"),
+                aes(label = unique(region), x = variable-0.01), 
+                hjust = 1, color = color_texto, size = 3, lineheight = 0.85) +
+      geom_vline(xintercept = 0, color = color_fondo, linewidth = 1.6) +
+      scale_fill_manual(values = c("Femenino" = color_femenino, "Masculino" = color_masculino)) + #escala para puntos principales
+      scale_x_continuous(limits = c(0-max(datos()$variable)-0.2, max(datos()$variable)),
+                         expand = expansion(c(0, 0))) +
+      # labs(x = "Porcentaje de la población perteneciente a cada género") +
+      coord_cartesian(clip = "off") +
+      theme_minimal() +
+      #leyenda
+      theme(panel.grid = element_blank(),
+            legend.position = "top", 
+            legend.box.margin = margin(b = -8),
+            legend.title = element_text(color = color_secundario, face = "bold", size = 12),
+            legend.text = element_text(size = 10, margin = margin(r = 10))) +
+      #textos
+      theme(text = element_text(color = color_texto), 
+            # axis.text.y = element_text(size = 9, hjust = 1,
+            #                            margin = margin(t = 0, r = 0), 
+            #                            color = color_texto), 
+            # plot.margin = unit(c(0, 0, 0, 50), "mm"),
+            axis.text.y = element_blank(),
+            axis.title.y = element_blank(),
+            axis.text.x = element_blank(),
+            axis.title.x = element_blank()
+            # axis.title.x = element_text(color = color_secundario, size = 12)) +
+      ) +
+      #fondos
+      theme(panel.background = element_rect(fill = color_fondo, linewidth = 0),
+            plot.background = element_rect(fill = color_fondo, linewidth = 0),
+            legend.background = element_rect(fill = "transparent", linewidth = 0)
+      ) +
+      guides(fill = guide_legend(reverse = T, title = "género: "))
+  }, res = 100)
 }
 
 
