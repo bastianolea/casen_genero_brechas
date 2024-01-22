@@ -5,7 +5,7 @@ account: bastianoleah
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10955406
-bundleId: 8155870
+bundleId: 8155929
 url: https://bastianoleah.shinyapps.io/casen_brechas_genero/
 version: 1
 asMultiple: FALSE

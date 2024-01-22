@@ -13,7 +13,7 @@ library(shinycssloaders)
 
 #colores ----
 color_fondo = "#1c0e44"
-color_recuadro = "#261060"
+color_recuadro = "#3a1582" #"#261060"
 
 color_texto = "#c1abfb"
 color_destacado = "#d8006b"
@@ -23,7 +23,7 @@ color_masculino = "#770072" #"#d8006b"
 
 color_positivo = "#00718d" #048486" #"#10607f" #"#007c81"
 color_negativo = "#912c6f" #"#7e1d1f" 
-color_neutro = "#431f9e"
+color_neutro = "#502baf" #"#431f9e"
 
 color_secundario = "#95008f"
 color_detalle = "#770072"
@@ -94,8 +94,9 @@ ui <- fluidPage(
   
   #colores pickers
   tags$style(paste0("
-         .dropdown-menu,  .divider {
+         .dropdown-menu, .divider {
          background: ", color_recuadro, " !important;
+         border: 1px solid ", color_fondo, " !important;
          }
   
          .dropdown-header {
@@ -105,11 +106,14 @@ ui <- fluidPage(
          
          .text {
          color: ", color_texto, " !important;
+         font-size: 80%;
          }
          
          .form-control {
          color: ", color_texto, " !important;
-         border: 1px solid ", color_recuadro, " !important;
+         border: none;
+         }
+         
          padding-bottom: 8px !important;
          box-shadow: none;
          }
@@ -131,7 +135,19 @@ ui <- fluidPage(
          background-color: ", color_femenino, " !important;
          }
          ")),
-  # .dropdown-menu>li>a:hover, .dropdown-menu>li>a:focus {
+  
+  #botones, botones hover
+  tags$style(paste0("
+    .action-button {
+    opacity: 1; font-size: 80%; padding: 4px; padding-left: 8px; padding-right: 8px; 
+    color: ", color_texto, "; 
+    border: 3px solid", color_fondo, ";
+    }
+    .action-button:hover, .action-button:active, .action-button:focus {
+    opacity: 1;
+    color: ", color_texto, "; 
+    border: 3px solid", color_destacado, ";
+    }")),
   
   
   ## header ----
@@ -171,7 +187,7 @@ ui <- fluidPage(
            pickerInput("tematica",
                        "Escoja las temáticas de su interés", width = "100%",
                        choices = names(variables), 
-                       selected = c(names(variables)[1], names(variables)[3]),
+                       selected = c(names(variables)[1], names(variables)[3], names(variables)[5]),
                        multiple = T, 
                        options = pickerOptions(noneSelectedText = "Sin selección")
            ),
@@ -180,7 +196,8 @@ ui <- fluidPage(
                        selected = variables$Viviendas[10],
                        multiple = F,
                        choices = NULL #sample(c(variables[[1]], variables[[3]]), 1)
-           )
+           ),
+           actionButton("azar_variable", "Elegir variable al azar")
     )
   ),
   
@@ -253,17 +270,25 @@ server <- function(input, output, session) {
     req(length(input$tematica) > 0)
     # temas <- c(names(variables)[4], names(variables)[5])
     # variables[temas]
-    temas <- input$tematica
     
-    message("temáticas: ", paste(temas, collapse = ", "))
+    message("temáticas: ", paste(input$tematica, collapse = ", "))
     
     updatePickerInput(session, 
                       "variable",
                       "Escoja una variable",
-                      choices = variables[temas]
+                      choices = variables[input$tematica]
     )
   }, suspended = F)
   
+  
+  #variable al azar
+  observeEvent(input$azar_variable, {
+    azar_variable <- sample(unlist(variables[input$tematica]), 1)
+    updatePickerInput(session,
+                      inputId = "variable",
+                      selected = azar_variable
+    )
+  })
   
   
   # datos ----
@@ -326,10 +351,11 @@ server <- function(input, output, session) {
       ggplot(aes(region, variable)) + 
       #fondos redondeados
       geom_segment(aes(xend = region, y = min(variable), yend = max(variable)+0.001),
-                   color = color_recuadro, linewidth = 18, lineend = "round", alpha = 0.7) +
+                   color = color_recuadro, linewidth = 18, lineend = "round", 
+                   alpha = 0.4, show.legend = F) +
       #linea horizontal de promedio
       geom_hline(aes(yintercept = valor_prom_pais), 
-                 color = color_fondo, linewidth = 1) +
+                 color = color_fondo, linewidth = 1, show.legend = F) +
       #linea vertical de brechas
       geom_segment(aes(xend = region, y = valor_min, yend = brecha_end, color = brecha_dir), 
                    linewidth = 4, lineend = "round", show.legend = T, alpha = 0.8) +
@@ -337,9 +363,9 @@ server <- function(input, output, session) {
       new_scale_colour() +
       #puntos de sombra
       geom_point(data = datos() |> filter(valor_pos == "arriba"), 
-                 aes(color = sexo, size = variable), color = color_recuadro, size = 15, alpha = 0.2) +
+                 aes(color = sexo, size = variable), color = color_recuadro, size = 15, alpha = 0.2, show.legend = F) +
       geom_point(data = datos() |> filter(valor_pos == "abajo"),
-                 aes(color = sexo, size = variable, y = variable-0.0008), color = color_fondo, size = 13, alpha = 0.4) +
+                 aes(color = sexo, size = variable, y = variable-0.0008), color = color_fondo, size = 13, alpha = 0.4, show.legend = F) +
       #puntos principales por región y sexo
       geom_point(aes(color = sexo, size = variable),
                  alpha = 1) +
@@ -387,7 +413,7 @@ server <- function(input, output, session) {
         # fill = guide_legend(override.aes = list(size = 6, label = ""), title = "brecha:", nrow = 1, order = 99),
         # fill = guide_legend(override.aes = list(size = 10, label = "", fill = NA, alpha = 1), title = "Brecha:", nrow = 1),
         fill = guide_legend(override.aes = list(size = 10, alpha = 1), title = "brecha: ", label.theme = element_text(margin = margin(l = 10)), nrow = 1),
-        colour = guide_legend(override.aes = list(size = 10), title = "género:", nrow = 1, order = 1)
+        colour = guide_legend(override.aes = list(size = 10, linewidth = 0), title = "género:", nrow = 1, order = 1)
       ) +
       labs(y = "Porcentaje de la población perteneciente a cada género") +
       theme_minimal() +
